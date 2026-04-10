@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم — نهاية رحلتي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --blue-deep: #030718;
+    --blue-dark: #060d2e;
+    --blue-accent: #1a5bff;
+    --blue-glow: #3b82f6;
+    --blue-light: #60a5fa;
+    --cyan: #00d4ff;
+    --green: #22c55e;
+    --red: #ef4444;
+    --glass-bg: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.10);
+    --glass-hover: rgba(255,255,255,0.08);
+    --text-primary: #f0f6ff;
+    --text-secondary: rgba(180,210,255,0.7);
+    --text-muted: rgba(120,160,220,0.5);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Tajawal', sans-serif;
+    background: var(--blue-deep);
+    color: var(--text-primary);
+    min-height:100vh;
+  }
+
+  /* BG */
+  .bg-orbs { position:fixed; inset:0; pointer-events:none; z-index:0; }
+  .orb { position:absolute; border-radius:50%; filter:blur(120px); opacity:0.15; }
+  .orb-1 { width:500px;height:500px; background:radial-gradient(circle,#1a5bff,transparent); top:-100px; right:-50px; animation:float 14s ease-in-out infinite; }
+  .orb-2 { width:350px;height:350px; background:radial-gradient(circle,#00d4ff,transparent); bottom:50px; left:-80px; animation:float 18s ease-in-out infinite reverse; }
+  @keyframes float { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,-30px)} }
+
+  /* ══ LOGIN SCREEN ══ */
+  .login-screen {
+    position:fixed; inset:0; z-index:999;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--blue-deep);
+  }
+  .login-box {
+    background: rgba(6,13,46,0.9);
+    border:1px solid var(--glass-border);
+    border-radius:24px; padding:48px 40px;
+    width:100%; max-width:400px;
+    backdrop-filter:blur(20px);
+    text-align:center;
+    animation: fadeIn 0.5s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+
+  .login-icon {
+    width:72px; height:72px; border-radius:50%;
+    background: linear-gradient(135deg,var(--blue-accent),var(--cyan));
+    display:flex; align-items:center; justify-content:center;
+    font-size:2rem; margin:0 auto 24px;
+    box-shadow: 0 0 30px rgba(26,91,255,0.5);
+  }
+  .login-title { font-size:1.5rem; font-weight:800; margin-bottom:6px; }
+  .login-sub { font-size:0.85rem; color:var(--text-muted); margin-bottom:32px; }
+
+  .input-group { margin-bottom:16px; text-align:right; }
+  .input-group label { display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:6px; }
+  .input-group input {
+    width:100%; padding:12px 16px; border-radius:12px;
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    color:var(--text-primary); font-family:'Tajawal',sans-serif; font-size:0.95rem;
+    outline:none; transition:border-color 0.3s;
+  }
+  .input-group input:focus { border-color:var(--blue-accent); }
+  .input-group input::placeholder { color:var(--text-muted); }
+
+  .login-btn {
+    width:100%; padding:13px; border-radius:12px;
+    background:linear-gradient(135deg,var(--blue-accent),#0ea5e9);
+    color:#fff; font-size:1rem; font-weight:700;
+    border:none; cursor:pointer; font-family:'Tajawal',sans-serif;
+    transition:all 0.3s; margin-top:8px;
+    box-shadow:0 0 20px rgba(26,91,255,0.3);
+  }
+  .login-btn:hover { transform:translateY(-1px); box-shadow:0 0 35px rgba(26,91,255,0.5); }
+  .login-error { color:#f87171; font-size:0.82rem; margin-top:10px; display:none; }
+
+  /* ══ DASHBOARD ══ */
+  .dashboard { position:relative; z-index:1; min-height:100vh; }
+  .dashboard.hidden { display:none; }
+
+  /* HEADER */
+  .dash-header {
+    background:rgba(3,7,24,0.8); backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--glass-border);
+    padding:18px 32px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:10;
+  }
+  .dash-logo { font-size:1.2rem; font-weight:900; }
+  .dash-logo span { color:var(--cyan); }
+  .dash-admin { display:flex; align-items:center; gap:12px; }
+  .admin-badge {
+    padding:5px 14px; border-radius:50px;
+    background:rgba(26,91,255,0.15); border:1px solid rgba(26,91,255,0.3);
+    font-size:0.75rem; color:var(--blue-light);
+  }
+  .logout-btn {
+    padding:7px 16px; border-radius:50px;
+    background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3);
+    color:#f87171; font-size:0.78rem; cursor:pointer;
+    font-family:'Tajawal',sans-serif; transition:all 0.3s;
+  }
+  .logout-btn:hover { background:rgba(239,68,68,0.2); }
+
+  /* TABS */
+  .dash-content { padding:32px; max-width:1100px; margin:0 auto; }
+  .tabs { display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; }
+  .tab-btn {
+    padding:10px 22px; border-radius:50px;
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    color:var(--text-secondary); font-size:0.9rem; font-weight:600;
+    cursor:pointer; font-family:'Tajawal',sans-serif; transition:all 0.3s;
+  }
+  .tab-btn.active {
+    background:linear-gradient(135deg,rgba(26,91,255,0.3),rgba(0,212,255,0.15));
+    border-color:rgba(26,91,255,0.5); color:#fff;
+  }
+  .tab-panel { display:none; animation:fadeIn 0.3s ease; }
+  .tab-panel.active { display:block; }
+
+  /* CARDS */
+  .panel-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  @media(max-width:768px){ .panel-grid{grid-template-columns:1fr} }
+  .panel-card {
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    border-radius:20px; padding:28px; backdrop-filter:blur(16px);
+  }
+  .panel-card-title {
+    font-size:1.05rem; font-weight:800; margin-bottom:22px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .panel-card-title::before {
+    content:''; width:4px; height:20px; border-radius:4px;
+    background:linear-gradient(to bottom,var(--blue-accent),var(--cyan));
+  }
+
+  /* FORM */
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:7px; }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width:100%; padding:11px 14px; border-radius:12px;
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    color:var(--text-primary); font-family:'Tajawal',sans-serif; font-size:0.9rem;
+    outline:none; transition:border-color 0.3s; resize:vertical;
+  }
+  .form-group select option { background:#060d2e; }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus { border-color:var(--blue-accent); }
+  .form-group input::placeholder,
+  .form-group textarea::placeholder { color:var(--text-muted); }
+
+  /* FILE UPLOAD */
+  .file-drop {
+    border:2px dashed var(--glass-border); border-radius:14px;
+    padding:32px; text-align:center; cursor:pointer;
+    transition:all 0.3s; background:var(--glass-bg);
+    position:relative; overflow:hidden;
+  }
+  .file-drop:hover, .file-drop.drag { border-color:var(--blue-accent); background:rgba(26,91,255,0.05); }
+  .file-drop input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
+  .file-icon { font-size:2.4rem; margin-bottom:10px; }
+  .file-label { font-size:0.88rem; color:var(--text-secondary); }
+  .file-label strong { color:var(--blue-light); }
+  .file-name {
+    margin-top:10px; padding:8px 14px; border-radius:8px;
+    background:rgba(26,91,255,0.1); font-size:0.82rem; color:var(--blue-light);
+    display:none;
+  }
+
+  /* PROGRESS */
+  .progress-bar {
+    height:4px; border-radius:4px; background:var(--glass-border);
+    margin:12px 0; overflow:hidden; display:none;
+  }
+  .progress-fill {
+    height:100%; border-radius:4px; width:0%;
+    background:linear-gradient(90deg,var(--blue-accent),var(--cyan));
+    transition:width 0.3s;
+  }
+
+  /* SUBMIT BTN */
+  .submit-btn {
+    width:100%; padding:13px; border-radius:12px;
+    background:linear-gradient(135deg,var(--blue-accent),#0ea5e9);
+    color:#fff; font-size:1rem; font-weight:700;
+    border:none; cursor:pointer; font-family:'Tajawal',sans-serif;
+    transition:all 0.3s; margin-top:4px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .submit-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 0 25px rgba(26,91,255,0.4); }
+  .submit-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .submit-btn.green { background:linear-gradient(135deg,#16a34a,#22c55e); }
+  .submit-btn.green:hover:not(:disabled) { box-shadow:0 0 25px rgba(34,197,94,0.4); }
+
+  /* TABLE */
+  .items-table { width:100%; border-collapse:collapse; }
+  .items-table th {
+    text-align:right; padding:12px 16px;
+    font-size:0.78rem; color:var(--text-muted);
+    border-bottom:1px solid var(--glass-border);
+    font-weight:600;
+  }
+  .items-table td {
+    padding:14px 16px; font-size:0.88rem;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+    vertical-align:middle;
+  }
+  .items-table tr:hover td { background:var(--glass-bg); }
+  .delete-btn {
+    padding:5px 12px; border-radius:8px;
+    background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2);
+    color:#f87171; font-size:0.78rem; cursor:pointer;
+    font-family:'Tajawal',sans-serif; transition:all 0.3s;
+  }
+  .delete-btn:hover { background:rgba(239,68,68,0.2); }
+  .table-wrap { overflow-x:auto; border-radius:16px; border:1px solid var(--glass-border); backdrop-filter:blur(16px); background:var(--glass-bg); }
+
+  /* STATS ROW */
+  .dash-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:28px; }
+  .dash-stat {
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    border-radius:16px; padding:20px; backdrop-filter:blur(16px);
+    display:flex; align-items:center; gap:14px;
+  }
+  .dash-stat-icon { font-size:1.8rem; }
+  .dash-stat-num { font-size:1.6rem; font-weight:900; line-height:1; background:linear-gradient(135deg,var(--blue-light),var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .dash-stat-label { font-size:0.75rem; color:var(--text-muted); }
+
+  /* TOAST */
+  .toast {
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(100px);
+    padding:12px 24px; border-radius:50px;
+    font-size:0.88rem; transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    z-index:9999; border:1px solid var(--glass-border); backdrop-filter:blur(20px);
+  }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  .toast.success { background:rgba(22,163,74,0.2); border-color:rgba(34,197,94,0.4); color:#4ade80; }
+  .toast.error { background:rgba(220,38,38,0.2); border-color:rgba(239,68,68,0.4); color:#f87171; }
+
+  /* Setup Card */
+  .setup-card {
+    background:rgba(234,179,8,0.05); border:1px solid rgba(234,179,8,0.2);
+    border-radius:16px; padding:20px 24px; margin-bottom:24px;
+  }
+  .setup-card h4 { color:#fbbf24; font-size:0.95rem; margin-bottom:12px; }
+  .setup-card pre {
+    background:rgba(0,0,0,0.3); border-radius:10px; padding:14px;
+    font-size:0.75rem; color:#94a3b8; overflow-x:auto; white-space:pre-wrap;
+    font-family:monospace; line-height:1.7;
+  }
+  .setup-card p { font-size:0.82rem; color:var(--text-muted); margin-top:10px; }
+
+  .badge-grade { padding:3px 10px; border-radius:50px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); font-size:0.72rem; color:#a5b4fc; }
+  .loading-row td { text-align:center; color:var(--text-muted); padding:40px; }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-icon">🔐</div>
+    <div class="login-title">لوحة التحكم</div>
+    <div class="login-sub">نهاية رحلتي — للإدارة فقط</div>
+    <div class="input-group">
+      <label>كلمة المرور</label>
+      <input type="password" id="passInput" placeholder="أدخل كلمة المرور" onkeydown="if(event.key==='Enter')tryLogin()">
+    </div>
+    <button class="login-btn" onclick="tryLogin()">🚀 دخول</button>
+    <div class="login-error" id="loginError">❌ كلمة المرور غير صحيحة</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard hidden" id="dashboard">
+
+  <div class="dash-header">
+    <div class="dash-logo">نهاية <span>رحلتي</span> — لوحة التحكم</div>
+    <div class="dash-admin">
+      <span class="admin-badge">👑 مدير</span>
+      <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+    </div>
+  </div>
+
+  <div class="dash-content">
+
+    <!-- STATS -->
+    <div class="dash-stats">
+      <div class="dash-stat">
+        <div class="dash-stat-icon">📄</div>
+        <div><div class="dash-stat-num" id="statBooklets">—</div><div class="dash-stat-label">بوكليت</div></div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon">📰</div>
+        <div><div class="dash-stat-num" id="statNews">—</div><div class="dash-stat-label">خبر</div></div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon">📚</div>
+        <div><div class="dash-stat-num" id="statSubjects">—</div><div class="dash-stat-label">مادة</div></div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('upload')">📤 رفع بوكليت</button>
+      <button class="tab-btn" onclick="switchTab('news')">📰 نشر خبر</button>
+      <button class="tab-btn" onclick="switchTab('manage')">⚙️ إدارة المحتوى</button>
+      <button class="tab-btn" onclick="switchTab('setup')">🛠️ إعداد Supabase</button>
+    </div>
+
+    <!-- TAB: UPLOAD BOOKLET -->
+    <div class="tab-panel active" id="tab-upload">
+      <div class="panel-grid">
+        <div class="panel-card">
+          <div class="panel-card-title">📤 رفع بوكليت جديد</div>
+
+          <div class="form-group">
+            <label>المادة الدراسية *</label>
+            <select id="up-subject">
+              <option value="">اختر المادة</option>
+              <option>الفقه</option><option>التوحيد</option><option>التفسير</option>
+              <option>الحديث</option><option>اللغة العربية</option><option>الرياضيات</option>
+              <option>العلوم</option><option>الأحياء</option><option>الكيمياء</option>
+              <option>الفيزياء</option><option>الجغرافيا</option><option>التاريخ</option>
+              <option>أخرى</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>الصف الدراسي *</label>
+            <select id="up-grade">
+              <option value="">اختر الصف</option>
+              <option>الأول الثانوي</option>
+              <option>الثاني الثانوي</option>
+              <option>الثالث الثانوي</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>السنة الدراسية *</label>
+            <select id="up-year">
+              <option>2025</option><option>2024</option><option>2023</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>نوع الملف</label>
+            <select id="up-type">
+              <option>نموذج استرشادي</option>
+              <option>بوكليت تدريبي</option>
+              <option>امتحان سابق</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>ملف PDF *</label>
+            <div class="file-drop" id="fileDrop">
+              <input type="file" id="fileInput" accept=".pdf" onchange="onFileSelect(this)">
+              <div class="file-icon">📁</div>
+              <div class="file-label">اسحب الملف هنا أو <strong>اضغط للاختيار</strong></div>
+              <div class="file-name" id="fileName"></div>
+            </div>
+          </div>
+          <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+          <button class="submit-btn" id="uploadBtn" onclick="uploadBooklet()">📤 رفع البوكليت</button>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-card-title">💡 تعليمات الرفع</div>
+          <div style="font-size:0.88rem;color:var(--text-secondary);line-height:2.2;display:flex;flex-direction:column;gap:10px;">
+            <p>✅ الملفات المدعومة: <strong style="color:var(--blue-light)">PDF فقط</strong></p>
+            <p>📦 الحجم الأقصى: <strong style="color:var(--blue-light)">50 MB</strong></p>
+            <p>📝 تأكد من اختيار المادة والصف قبل الرفع</p>
+            <p>🔒 الملفات تُحفظ تلقائياً على Supabase Storage</p>
+            <p>🌐 تظهر في الموقع فوراً بعد الرفع</p>
+            <p>🗑️ يمكن الحذف من تبويب "إدارة المحتوى"</p>
+          </div>
+          <div style="margin-top:24px;padding:16px;background:rgba(26,91,255,0.08);border-radius:12px;border:1px solid rgba(26,91,255,0.2);">
+            <div style="font-size:0.8rem;color:var(--blue-light);font-weight:700;margin-bottom:8px;">📊 إحصائيات سريعة</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);">آخر رفع: <span id="lastUpload" style="color:var(--text-secondary)">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: NEWS -->
+    <div class="tab-panel" id="tab-news">
+      <div class="panel-grid">
+        <div class="panel-card">
+          <div class="panel-card-title">📰 نشر خبر جديد</div>
+          <div class="form-group">
+            <label>عنوان الخبر *</label>
+            <input type="text" id="news-title" placeholder="مثال: موعد امتحانات الدور الثاني...">
+          </div>
+          <div class="form-group">
+            <label>محتوى الخبر *</label>
+            <textarea id="news-content" rows="6" placeholder="اكتب تفاصيل الخبر هنا..."></textarea>
+          </div>
+          <button class="submit-btn green" onclick="publishNews()">📢 نشر الخبر</button>
+        </div>
+        <div class="panel-card">
+          <div class="panel-card-title">💡 نصائح النشر</div>
+          <div style="font-size:0.88rem;color:var(--text-secondary);line-height:2.2;display:flex;flex-direction:column;gap:10px;">
+            <p>📌 اكتب عنواناً واضحاً ومختصراً</p>
+            <p>📅 التاريخ يُضاف تلقائياً</p>
+            <p>✍️ استخدم لغة واضحة وسهلة</p>
+            <p>🔔 الأخبار تظهر فوراً على الصفحة الرئيسية</p>
+            <p>🗑️ يمكن حذف أي خبر من "إدارة المحتوى"</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: MANAGE -->
+    <div class="tab-panel" id="tab-manage">
+      <div style="margin-bottom:24px;display:flex;gap:12px;flex-wrap:wrap;">
+        <button class="tab-btn active" id="manageBookletsBtn" onclick="showManage('booklets')">📄 البوكليتات</button>
+        <button class="tab-btn" id="manageNewsBtn" onclick="showManage('news')">📰 الأخبار</button>
+      </div>
+
+      <div id="manage-booklets">
+        <div class="table-wrap">
+          <table class="items-table">
+            <thead><tr><th>المادة</th><th>الصف</th><th>السنة</th><th>النوع</th><th>التاريخ</th><th></th></tr></thead>
+            <tbody id="bookletsTbody"><tr class="loading-row"><td colspan="6">⏳ جاري التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="manage-news" style="display:none">
+        <div class="table-wrap">
+          <table class="items-table">
+            <thead><tr><th>العنوان</th><th>المحتوى</th><th>التاريخ</th><th></th></tr></thead>
+            <tbody id="newsTbody"><tr class="loading-row"><td colspan="4">⏳ جاري التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: SETUP -->
+    <div class="tab-panel" id="tab-setup">
+      <div class="setup-card">
+        <h4>⚙️ خطوات إعداد Supabase (مرة واحدة فقط)</h4>
+        <p>افتح <strong>SQL Editor</strong> في لوحة Supabase وشغّل الكود التالي:</p>
+        <pre>-- إنشاء جدول البوكليتات
+create table if not exists booklets (
+  id uuid default gen_random_uuid() primary key,
+  subject text not null,
+  grade text not null,
+  year text not null,
+  type text default 'نموذج استرشادي',
+  file_url text not null,
+  file_name text,
+  created_at timestamptz default now()
+);
+
+-- إنشاء جدول الأخبار
+create table if not exists news (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  content text not null,
+  created_at timestamptz default now()
+);
+
+-- السماح بالقراءة والكتابة للجميع
+alter table booklets enable row level security;
+alter table news enable row level security;
+
+create policy "allow_all_booklets" on booklets for all using (true) with check (true);
+create policy "allow_all_news" on news for all using (true) with check (true);</pre>
+        <p>ثم من قائمة <strong>Storage</strong> → أنشئ Bucket اسمه <strong>booklets</strong> واجعله <strong>Public</strong>.</p>
+      </div>
+      <div class="panel-card" style="max-width:500px">
+        <div class="panel-card-title">🔑 تغيير كلمة المرور</div>
+        <div class="form-group">
+          <label>الكلمة الحالية</label>
+          <input type="password" id="cur-pass" placeholder="كلمة المرور الحالية">
+        </div>
+        <div class="form-group">
+          <label>الكلمة الجديدة</label>
+          <input type="password" id="new-pass" placeholder="كلمة المرور الجديدة">
+        </div>
+        <button class="submit-btn" onclick="changePassword()">💾 حفظ كلمة المرور</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://wjcbtscphwiknrzjjbse.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qNq-yICSwrVY2KuocFIA5g_tYEXawL3';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let ADMIN_PASS = localStorage.getItem('_nhp') || 'azhar2025';
+
+// ══ AUTH ══
+function tryLogin() {
+  const pass = document.getElementById('passInput').value;
+  if (pass === ADMIN_PASS) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').classList.remove('hidden');
+    loadDashboard();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('passInput').classList.add('shake');
+    setTimeout(() => document.getElementById('passInput').classList.remove('shake'), 400);
+  }
+}
+
+function logout() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('passInput').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+function changePassword() {
+  const cur = document.getElementById('cur-pass').value;
+  const nw = document.getElementById('new-pass').value;
+  if (cur !== ADMIN_PASS) { toast('كلمة المرور الحالية غير صحيحة', 'error'); return; }
+  if (nw.length < 6) { toast('الكلمة الجديدة قصيرة جداً', 'error'); return; }
+  ADMIN_PASS = nw;
+  localStorage.setItem('_nhp', nw);
+  toast('✅ تم تغيير كلمة المرور', 'success');
+  document.getElementById('cur-pass').value = '';
+  document.getElementById('new-pass').value = '';
+}
+
+// ══ TABS ══
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'manage') loadManageData();
+}
+
+function showManage(type) {
+  document.getElementById('manage-booklets').style.display = type === 'booklets' ? 'block' : 'none';
+  document.getElementById('manage-news').style.display = type === 'news' ? 'block' : 'none';
+  document.getElementById('manageBookletsBtn').classList.toggle('active', type === 'booklets');
+  document.getElementById('manageNewsBtn').classList.toggle('active', type === 'news');
+}
+
+// ══ FILE SELECT ══
+function onFileSelect(input) {
+  if (input.files[0]) {
+    const name = input.files[0].name;
+    document.getElementById('fileName').textContent = '📄 ' + name;
+    document.getElementById('fileName').style.display = 'block';
+  }
+}
+
+const drop = document.getElementById('fileDrop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    document.getElementById('fileName').textContent = '📄 ' + file.name;
+    document.getElementById('fileName').style.display = 'block';
+  }
+});
+
+// ══ UPLOAD BOOKLET ══
+async function uploadBooklet() {
+  const subject = document.getElementById('up-subject').value;
+  const grade = document.getElementById('up-grade').value;
+  const year = document.getElementById('up-year').value;
+  const type = document.getElementById('up-type').value;
+  const file = document.getElementById('fileInput').files[0];
+
+  if (!subject || !grade || !file) { toast('يرجى ملء جميع الحقول المطلوبة', 'error'); return; }
+  if (!file.name.endsWith('.pdf')) { toast('الملف يجب أن يكون PDF', 'error'); return; }
+
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true; btn.textContent = '⏳ جاري الرفع...';
+  document.getElementById('progressBar').style.display = 'block';
+  document.getElementById('progressFill').style.width = '30%';
+
+  const fileName = `${Date.now()}_${file.name.replace(/\s+/g,'_')}`;
+
+  try {
+    // Upload file
+    const { error: uploadError } = await db.storage.from('booklets').upload(fileName, file, { cacheControl: '3600', upsert: false });
+    if (uploadError) throw uploadError;
+
+    document.getElementById('progressFill').style.width = '70%';
+
+    // Get public URL
+    const { data: urlData } = db.storage.from('booklets').getPublicUrl(fileName);
+    const fileUrl = urlData.publicUrl;
+
+    document.getElementById('progressFill').style.width = '90%';
+
+    // Insert record
+    const { error: dbError } = await db.from('booklets').insert({ subject, grade, year, type, file_url: fileUrl, file_name: file.name });
+    if (dbError) throw dbError;
+
+    document.getElementById('progressFill').style.width = '100%';
+    setTimeout(() => {
+      document.getElementById('progressBar').style.display = 'none';
+      document.getElementById('progressFill').style.width = '0%';
+    }, 1000);
+
+    toast('✅ تم رفع البوكليت بنجاح!', 'success');
+    document.getElementById('lastUpload').textContent = new Date().toLocaleTimeString('ar-EG');
+    resetForm();
+    loadStats();
+  } catch(e) {
+    toast('❌ حدث خطأ: ' + (e.message || 'تعذّر الرفع'), 'error');
+    document.getElementById('progressBar').style.display = 'none';
+  } finally {
+    btn.disabled = false; btn.textContent = '📤 رفع البوكليت';
+  }
+}
+
+function resetForm() {
+  document.getElementById('up-subject').value = '';
+  document.getElementById('up-grade').value = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileName').style.display = 'none';
+}
+
+// ══ PUBLISH NEWS ══
+async function publishNews() {
+  const title = document.getElementById('news-title').value.trim();
+  const content = document.getElementById('news-content').value.trim();
+  if (!title || !content) { toast('يرجى إدخال العنوان والمحتوى', 'error'); return; }
+
+  const btn = event.target; btn.disabled = true; btn.textContent = '⏳ جاري النشر...';
+  try {
+    const { error } = await db.from('news').insert({ title, content });
+    if (error) throw error;
+    toast('✅ تم نشر الخبر بنجاح!', 'success');
+    document.getElementById('news-title').value = '';
+    document.getElementById('news-content').value = '';
+    loadStats();
+  } catch(e) {
+    toast('❌ حدث خطأ: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '📢 نشر الخبر';
+  }
+}
+
+// ══ LOAD DATA ══
+async function loadStats() {
+  const [{ count: b }, { count: n }] = await Promise.all([
+    db.from('booklets').select('*', { count:'exact', head:true }),
+    db.from('news').select('*', { count:'exact', head:true })
+  ]);
+  document.getElementById('statBooklets').textContent = b || 0;
+  document.getElementById('statNews').textContent = n || 0;
+}
+
+async function loadManageData() {
+  // Booklets
+  const { data: booklets } = await db.from('booklets').select('*').order('created_at',{ascending:false});
+  const btbody = document.getElementById('bookletsTbody');
+  if (!booklets || !booklets.length) {
+    btbody.innerHTML = '<tr class="loading-row"><td colspan="6">لا توجد بوكليتات بعد</td></tr>';
+  } else {
+    btbody.innerHTML = booklets.map(b => `
+      <tr>
+        <td>${b.subject}</td>
+        <td><span class="badge-grade">${b.grade}</span></td>
+        <td>${b.year}</td>
+        <td>${b.type}</td>
+        <td style="font-size:0.75rem;color:var(--text-muted)">${new Date(b.created_at).toLocaleDateString('ar-EG')}</td>
+        <td><button class="delete-btn" onclick="deleteBooklet('${b.id}','${b.file_name || ''}')">🗑️ حذف</button></td>
+      </tr>
+    `).join('');
+  }
+  document.getElementById('statSubjects').textContent = booklets ? new Set(booklets.map(b=>b.subject)).size : 0;
+
+  // News
+  const { data: newsItems } = await db.from('news').select('*').order('created_at',{ascending:false});
+  const ntbody = document.getElementById('newsTbody');
+  if (!newsItems || !newsItems.length) {
+    ntbody.innerHTML = '<tr class="loading-row"><td colspan="4">لا توجد أخبار بعد</td></tr>';
+  } else {
+    ntbody.innerHTML = newsItems.map(n => `
+      <tr>
+        <td style="font-weight:600">${n.title}</td>
+        <td style="color:var(--text-muted);font-size:0.82rem">${n.content.substring(0,60)}...</td>
+        <td style="font-size:0.75rem;color:var(--text-muted)">${new Date(n.created_at).toLocaleDateString('ar-EG')}</td>
+        <td><button class="delete-btn" onclick="deleteNews('${n.id}')">🗑️ حذف</button></td>
+      </tr>
+    `).join('');
+  }
+}
+
+async function deleteBooklet(id, fileName) {
+  if (!confirm('هل تريد حذف هذا البوكليت؟')) return;
+  if (fileName) await db.storage.from('booklets').remove([fileName]);
+  await db.from('booklets').delete().eq('id', id);
+  toast('🗑️ تم الحذف', 'success');
+  loadManageData(); loadStats();
+}
+
+async function deleteNews(id) {
+  if (!confirm('هل تريد حذف هذا الخبر؟')) return;
+  await db.from('news').delete().eq('id', id);
+  toast('🗑️ تم حذف الخبر', 'success');
+  loadManageData(); loadStats();
+}
+
+function loadDashboard() { loadStats(); }
+
+// ══ TOAST ══
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
